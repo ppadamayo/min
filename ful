@@ -1,0 +1,58 @@
+#coding: utf8
+#title: AVSoGirl 사이트 추가
+#author: Kurt Bestor
+
+import downloader
+from utils import Soup, try_n, Downloader, urljoin, get_print, Session, clean_url, clean_title, LazyUrl, get_ext, fix_title, lazy, get_imgs_already
+from translator import tr_
+import page_selector
+import utils
+from time import sleep
+import clf2
+import ree as re
+from ratelimit import limits, sleep_and_retry
+
+@Downloader.register
+class Downloader_sogirl(Downloader):
+type = 'sogirl'
+URLS = ['.sogirl.co']
+single = True
+
+def read(self):
+    # soup = downloader.read_soup(self.url)
+    self.session, soup = get_soup(self.url)
+
+    title = soup.find('meta', {'property': 'og:title'})['content'].strip()
+
+    playlist = soup.find('div', class_='fp-playlist-external')
+    srcs = []
+    for a in playlist.findAll('a'):
+        data = a.get('data-item')
+        if not data:
+            continue
+        data = json.loads(data)
+        for src in data['sources']:
+            if src.get('fv_title'): # Ad
+                continue
+            srcs.append(src['src'])
+
+    url_video = srcs[0]
+    self.urls.append(url_video)
+    self.filenames[url_video] = '{}{}'.format(clean_title(title), get_ext(url_video))
+    self.referer = self.url
+
+    self.title = title
+@sleep_and_retry
+@limits(1, 10)
+def get_soup(url, session=None):
+if session is None:
+session = Session()
+res = clf2.solve(url, session=session)
+print_ = get_print(None)
+print_('read start xxx')
+print_('res = {}'.format(res))
+soup = Soup(res['html'])
+print_('soup = {}'.format(soup))
+
+return session, soup
+messageBox(u'{}: AVSogirl'.format(tr_(u'사이트를 추가했습니다')))
